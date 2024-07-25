@@ -32,19 +32,19 @@ void initialize_allocator(int _size, enum allocation_algorithm _aalgorithm) {
     printf("Rounded up size is %d \n", rounded_memory_size);
     myalloc.size = rounded_memory_size;
 
-    void *ptr = malloc((size_t)myalloc.size);
-    if (ptr == NULL) {
+    void *memory_ptr = malloc((size_t)myalloc.size);
+    if (memory_ptr == NULL) {
         perror("Failed to allocate memory");
         exit(EXIT_FAILURE);
     }
-    memset(ptr, 0, (size_t)myalloc.size);
+    memset(memory_ptr, 0, (size_t)myalloc.size);
 
-    myalloc.memory = ptr;  
+    myalloc.memory = memory_ptr;  
     myalloc.allocated_memory = NULL;
-    myalloc.free_memory = createNode(ptr, rounded_memory_size);
+    myalloc.free_memory = createNode(memory_ptr, rounded_memory_size);
     if (myalloc.free_memory == NULL) {
         perror("Failed to create free memory node");
-        free(ptr);
+        free(memory_ptr);
         exit(EXIT_FAILURE);
     }
     sem_post(&mutex);
@@ -64,78 +64,79 @@ void destroy_allocator() {
 
 void* allocate(int _size) {
     sem_wait(&mutex);
-    int sizewithheader = _size + 8;
+    int headerSize = 8;
+    int blockSizeWithHeader = _size + headerSize;
     void* allocatedPtr = NULL;
-    Node *emptyblock = NULL;
-    Node *currentblock = myalloc.free_memory;
-    int availableMemory = available_memory();
+    Node *availableBlock = NULL;
+    Node *currentBlockPtr = myalloc.free_memory;
+    int freeMemorySize = available_memory();
    
-    printf("Available memory at this point is %d \n", availableMemory);
+    printf("Available memory at this point is %d \n", freeMemorySize);
 
-    if ((_size <= 0) || (sizewithheader > availableMemory) || (sizewithheader > myalloc.size)) {
+    if (blockSizeWithHeader > myalloc.size || blockSizeWithHeader > freeMemorySize || _size <= 0) {
         sem_post(&mutex);
         return allocatedPtr;
     }
 
-    int leftover;
+    int remainingSpace;
     if (myalloc.aalgorithm == FIRST_FIT) {
-        while (currentblock != NULL && currentblock->data < sizewithheader) {
-            currentblock = currentblock->next;
+        while (currentBlockPtr != NULL && currentBlockPtr->data < blockSizeWithHeader) {
+            currentBlockPtr = currentBlockPtr->next;
         }
-        if (currentblock != NULL && currentblock->data >= sizewithheader) {
-            emptyblock = currentblock;
+        if (currentBlockPtr != NULL && currentBlockPtr->data >= blockSizeWithHeader) {
+            availableBlock = currentBlockPtr;
         }
     } else if (myalloc.aalgorithm == BEST_FIT) {
         int temp = myalloc.size;
         int best = myalloc.size;
 
-        while (currentblock != NULL) {
-            leftover = currentblock->data - sizewithheader;
-            if (leftover >= 0) {
-                temp = leftover;
+        while (currentBlockPtr != NULL) {
+            remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
+            if (remainingSpace >= 0) {
+                temp = remainingSpace;
                 if (temp < best) {
-                    emptyblock = currentblock;
+                    availableBlock = currentBlockPtr;
                     best = temp;
                 }
             }
-            currentblock = currentblock->next;
+            currentBlockPtr = currentBlockPtr->next;
         }
     } else {  // WORST_FIT
         int temp = 0;
         int worst = -1;
 
-        while (currentblock != NULL) {
-            leftover = currentblock->data - sizewithheader;
-            if (leftover >= 0) {
-                temp = leftover;
+        while (currentBlockPtr != NULL) {
+            remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
+            if (remainingSpace >= 0) {
+                temp = remainingSpace;
                 if (temp > worst) {
-                    emptyblock = currentblock;
+                    availableBlock = currentBlockPtr;
                     worst = temp;
                 }
             }
-            currentblock = currentblock->next;
+            currentBlockPtr = currentBlockPtr->next;
         }
     }
 
-    if (emptyblock == NULL) {
+    if (availableBlock == NULL) {
         sem_post(&mutex);
         return allocatedPtr;
     }
 
-    int new_emptyblock_data = emptyblock->data - sizewithheader;
-    if (new_emptyblock_data == 0) {
-        insertNodeAtTail(&myalloc.allocated_memory, emptyblock);
-        emptyblock->data = sizewithheader; // Include the header size
-        allocatedPtr = emptyblock->nodeptr;
-        deleteNode(&myalloc.free_memory, emptyblock);
+    int new_availableBlock_data = availableBlock->data - blockSizeWithHeader;
+    if (new_availableBlock_data == 0) {
+        insertNodeAtTail(&myalloc.allocated_memory, availableBlock);
+        availableBlock->data = blockSizeWithHeader; // Include the header size
+        allocatedPtr = availableBlock->nodeptr;
+        deleteNode(&myalloc.free_memory, availableBlock);
     } else {
-        Node *newnode = createNode((char*)emptyblock->nodeptr + sizewithheader, new_emptyblock_data);
-        allocatedPtr = emptyblock->nodeptr;
+        Node *newnode = createNode((char*)availableBlock->nodeptr + blockSizeWithHeader, new_availableBlock_data);
+        allocatedPtr = availableBlock->nodeptr;
 
-        Node *blockcopy = createNode(emptyblock->nodeptr, sizewithheader);
+        Node *blockcopy = createNode(availableBlock->nodeptr, blockSizeWithHeader);
 
         insertNodeAtTail(&myalloc.allocated_memory, blockcopy);
-        deleteNode(&myalloc.free_memory, emptyblock);
+        deleteNode(&myalloc.free_memory, availableBlock);
         insertNodeAtTail(&myalloc.free_memory, newnode); 
     }
     sem_post(&mutex);
