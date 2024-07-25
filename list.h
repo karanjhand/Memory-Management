@@ -1,65 +1,39 @@
-//define the node type and list type
+#ifndef __LIST_H__
+#define __LIST_H__
 
-typedef struct nodeStruct{
-	int item;
+typedef struct node{
+	int data;
 	void *nodeptr;
-	struct nodeStruct *next;
-} nodeStruct;
+	struct node *next;
+} Node;
 
 
-/*
- * Allocate memory for a node of type struct nodeStruct and initialize
- * it with the value item. Return a pointer to the new node.
- */
-struct nodeStruct* List_createNode(void *ptr, int item);
+//Creates a node for a linked list
+Node* createNode(void *ptr, int data);
+
+//Destructs a linked list
+void destructor(Node *head);
+
+//inserts a node at the head of the linked list
+void insertNodeAtHead(Node **head, Node *node);
+
+//insert a node at the tail of the linked list
+void insertNodeAtTail(Node **head, Node *node);
+
+//counts the nodes in the linked list
+int countNodes(Node *head);
+
+//finds the node in the linked list with the data we are looking for, return NULL if not found
+Node* findNode(Node *head, int data);
+
+//deletes a Node
+void deleteNode(Node **head, Node *node);
+
+//Sort the list in ascending order
+void sortList(Node **head);
+
+//calculates and returns the sum of the data values stored in all nodes of a linked list
+int sumNodesData(Node *head);
 
 
-
-void List_distoryer (struct nodeStruct *headRef);
-
-
-
-/*
- * Insert node at the head of the list.
- */
-void List_insertHead (struct nodeStruct **headRef, struct nodeStruct *node);
-
-
-/*
- * Insert node after the tail of the list.
- */
-void List_insertTail (struct nodeStruct **headRef, struct nodeStruct *node);
-
-
-/*
- * Count number of nodes in the list.
- * Return 0 if the list is empty, i.e., head == NULL
- */
-int List_countNodes (struct nodeStruct *head);
-
-
-/*
- * Return the first node holding the value item, return NULL if none found
- */
-struct nodeStruct* List_findNode(struct nodeStruct *head, int item);
-
-/*
- * Delete node from the list and free memory allocated to it.
- * This function assumes that node has been properly set to a valid node 
- * in the list. For example, the client code may have found it by calling 
- * List_findNode(). If the list contains only one node, the head of the list 
- * should be set to NULL.
- */
-void List_deleteNode (struct nodeStruct **headRef, struct nodeStruct *node);
-
-
-/*
- * Sort the list in ascending order based on the item field.
- * Any sorting algorithm is fine.
- */
-void List_sort (struct nodeStruct **headRef);
-
-
-int List_sum_memsize(struct nodeStruct *head);
-
-
+#endif

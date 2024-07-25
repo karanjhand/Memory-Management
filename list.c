@@ -3,60 +3,44 @@
 #include <assert.h>
 #include "list.h"
 
-// refer to solution provided for assignment 1
-
-
-/*
- * Allocate memory for a node of type struct nodeStruct and initialize
- * it with the value item. Return a pointer to the new node.
- */
-struct nodeStruct* List_createNode(void *ptr, int item) {
-    struct nodeStruct *node = malloc(sizeof(struct nodeStruct));
+//Creates a node for a List
+Node* createNode(void *ptr, int data) {
+    Node *node = malloc(sizeof(Node));
     if (node != NULL) {
-        node->item = item;
+        node->data = data;
         node->nodeptr = ptr;
         node->next = NULL;
     }
     return node;
 }
 
-
-
-
-void List_distoryer (struct nodeStruct *headRef){
-	struct nodeStruct *temp;
-    while(headRef){
-        temp = headRef->next;
-        free(headRef);
-        headRef = temp;
+//Destructs a List
+void destructor (Node *head){
+	Node *temp;
+    while(head){
+        temp = head->next;
+        free(head);
+        head = temp;
     }
 }
 
-
-
-/*
- * Insert node at the head of the list.
- */
-void List_insertHead (struct nodeStruct **headRef, struct nodeStruct *node){
-	if(headRef){
-		node->next = *headRef;
-		*headRef = node;
+//inserts a node at the head of the List
+void insertNodeAtHead (Node **head, Node *node){
+	if(head){
+		node->next = *head;
+		*head = node;
 	}
 }
 
 
-/*
- * Insert node after the tail of the list.
- */
-void List_insertTail(struct nodeStruct **headRef, struct nodeStruct *node) {
+//insert a node at the tail of the List
+void insertNodeAtTail(Node **head, Node *node) {
     node->next = NULL;
 
-    // Handle empty list
-    if (*headRef == NULL) {
-        *headRef = node;
+    if (*head == NULL) {
+        *head = node;
     } else {
-        // Find the tail and insert node
-        struct nodeStruct *current = *headRef;
+        Node *current = *head;
         while (current->next != NULL) {
             current = current->next;
         }
@@ -65,87 +49,72 @@ void List_insertTail(struct nodeStruct **headRef, struct nodeStruct *node) {
 }
 
 
-/*
- * Count number of nodes in the list.
- * Return 0 if the list is empty, i.e., head == NULL
- */
-int List_countNodes (struct nodeStruct *head){
-	int i = 0;
-	nodeStruct *ptr = head;
-	for(;ptr; ptr = ptr->next, i++);
-	return i;
+//counts the nodes in the List
+int countNodes(Node *head){
+   	int count = 0;         
+    Node *current = head; 
+    while (current != NULL) {
+        count++;
+        current = current->next;
+    }
+    return count;
 }
 
 
-/*
- * Return the first node holding the value item, return NULL if none found
- */
-struct nodeStruct* List_findNode(struct nodeStruct *head, int item){
-	nodeStruct *ptr = head;
-	while(ptr){
-		if (ptr->item == item){
-			return ptr;
-		}else{
-			ptr = ptr->next;
+//finds the node in the List with the data we are looking for, return NULL if not found
+Node* findNode(Node *head, int data){
+	Node *current = head;
+	while(current != NULL){
+		if (current->data == data){
+			return current;
+		}
+		else{
+			current = current->next;
 		}
 	}
 	return NULL;
 }
 
-/*
- * Delete node from the list and free memory allocated to it.
- * This function assumes that node has been properly set to a valid node 
- * in the list. For example, the client code may have found it by calling 
- * List_findNode(). If the list contains only one node, the head of the list 
- * should be set to NULL.
- */
-void List_deleteNode (struct nodeStruct **headRef, struct nodeStruct *node){
-	assert(headRef != NULL);
-	assert(*headRef != NULL);
+//deletes a Node
+void deleteNode(Node **head, Node *node){
+	assert(head != NULL);
+	assert(*head != NULL);
 
-	// Is it the first element?
-	if (*headRef == node) {
-		*headRef = node->next;
+	if (*head == node) {
+		*head = node->next;
 	}
 	else {
-		// Find the previous node:
-		struct nodeStruct *previous = *headRef;
-		while (previous->next != node) {
-			previous = previous->next;
-			assert(previous != NULL);
+		Node *current = *head;
+		while (current->next != node) {
+			current = current->next;
+			assert(current != NULL);
 		}
-
-		// Unlink node:
-		assert(previous->next == node);
-		previous->next = node->next;
+		assert(current->next == node);
+		current->next = node->next;
 	}
 
-	// Free memory:
 	free(node);
 }
 
-/*
- * Sort the list in ascending order based on the item field.
- * Any sorting algorithm is fine.
- */
-void List_sort (struct nodeStruct **headRef){
-	nodeStruct *p, *target;
+//Sort the list in ascending order
+void sortList (Node **head){
+	Node *p, *target;
 	int changed = 1;
 
-	if ((target = (nodeStruct *)malloc(sizeof(nodeStruct))) == NULL){
+	if ((target = (Node *)malloc(sizeof(Node))) == NULL){
 		exit(1);
 	}
 
-	target->next = *headRef;
-	if (*headRef != NULL && target->next != NULL){
+	target->next = *head;
+	if (*head != NULL && target->next != NULL){
 		while(changed == 1){
 			changed = 0;
 			p = target->next;
 			while (p->next != NULL){
-				if (p->item > p->next->item){
-					int temp = p->item;
-					p->item = p->next->item;
-					p->next->item = temp;
+				if (p->data > p->next->data){
+					int temp = p->data;
+					p->data = p->next->data;
+					p->next->data = temp;
 					changed = 1;
 				}
 				if (p->next != NULL){
@@ -155,16 +124,16 @@ void List_sort (struct nodeStruct **headRef){
 		}
 		p = target->next;
 		free(target);
-		*headRef = p;
+		*head = p;
 	}
 }
 
-
-int List_sum_memsize(struct nodeStruct *head) {
+//calculates and returns the sum of the data values stored in all nodes of a linked list
+int sumNodesData(Node *head) {
     int sum = 0;
-    struct nodeStruct *curr = head;
+    Node *curr = head;
     while(curr != NULL) {
-        sum += curr->item;
+        sum += curr->data;
         curr = curr->next;
     }
     return sum;
