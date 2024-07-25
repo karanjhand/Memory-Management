@@ -1,0 +1,70 @@
+IN THE HEADER
+
+//inserts a node at the head of the linked list
+void insertNodeAtHead(Node **head, Node *node);
+
+//finds the node in the linked list with the data we are looking for, return NULL if not found
+Node* findNode(Node *head, int data);
+
+//Sort the list in ascending order
+void sortList(Node **head);
+
+
+IN THE CPP
+
+//inserts a node at the head of the List
+void insertNodeAtHead (Node **head, Node *node){
+	if(head){
+		node->next = *head;
+		*head = node;
+	}
+}
+
+
+//finds the node in the List with the data we are looking for, return NULL if not found
+Node* findNode(Node *head, int data){
+	Node *current = head;
+	while(current != NULL){
+		if (current->data == data){
+			return current;
+		}
+		else{
+			current = current->next;
+		}
+	}
+	return NULL;
+}
+
+
+
+//Sort the list in ascending order
+void sortList (Node **head){
+	Node *p, *target;
+	int changed = 1;
+
+	if ((target = (Node *)malloc(sizeof(Node))) == NULL){
+		exit(1);
+	}
+
+	target->next = *head;
+	if (*head != NULL && target->next != NULL){
+		while(changed == 1){
+			changed = 0;
+			p = target->next;
+			while (p->next != NULL){
+				if (p->data > p->next->data){
+					int temp = p->data;
+					p->data = p->next->data;
+					p->next->data = temp;
+					changed = 1;
+				}
+				if (p->next != NULL){
+					p = p->next;
+				}
+			}
+		}
+		p = target->next;
+		free(target);
+		*head = p;
+	}
+}

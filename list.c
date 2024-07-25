@@ -5,49 +5,40 @@
 
 //Creates a node for a List
 Node* createNode(void *ptr, int data) {
-    Node *node = malloc(sizeof(Node));
-    if (node != NULL) {
-        node->data = data;
-        node->nodeptr = ptr;
-        node->next = NULL;
+    Node *newNode = malloc(sizeof(Node));
+    if (newNode != NULL) {
+        newNode->data = data;
+        newNode->nodeptr = ptr;
+        newNode->next = NULL;
     }
-    return node;
+    return newNode;
 }
 
 //Destructs a List
-void destructor (Node *head){
-	Node *temp;
+void destructor(Node *head){
+	Node *current;
     while(head){
-        temp = head->next;
+        current = head->next;
         free(head);
-        head = temp;
+        head = current;
     }
 }
 
-//inserts a node at the head of the List
-void insertNodeAtHead (Node **head, Node *node){
-	if(head){
-		node->next = *head;
-		*head = node;
-	}
-}
-
-
 //insert a node at the tail of the List
-void insertNodeAtTail(Node **head, Node *node) {
-    node->next = NULL;
+void insertNodeAtTail(Node **head, Node *newNode) {
+    newNode->next = NULL;
 
     if (*head == NULL) {
-        *head = node;
-    } else {
+        *head = newNode;
+    } 
+	else{
         Node *current = *head;
         while (current->next != NULL) {
             current = current->next;
         }
-        current->next = node;
+        current->next = newNode;
     }
 }
-
 
 //counts the nodes in the List
 int countNodes(Node *head){
@@ -60,81 +51,32 @@ int countNodes(Node *head){
     return count;
 }
 
-
-//finds the node in the List with the data we are looking for, return NULL if not found
-Node* findNode(Node *head, int data){
-	Node *current = head;
-	while(current != NULL){
-		if (current->data == data){
-			return current;
-		}
-		else{
-			current = current->next;
-		}
-	}
-	return NULL;
-}
-
 //deletes a Node
 void deleteNode(Node **head, Node *node){
 	assert(head != NULL);
 	assert(*head != NULL);
 
-	if (*head == node) {
+	if (*head == node){
 		*head = node->next;
 	}
-	else {
+	else{
 		Node *current = *head;
-		while (current->next != node) {
+		while (current->next != node && current != NULL){
 			current = current->next;
-			assert(current != NULL);
 		}
 		assert(current->next == node);
 		current->next = node->next;
 	}
-
 	free(node);
-}
-
-//Sort the list in ascending order
-void sortList (Node **head){
-	Node *p, *target;
-	int changed = 1;
-
-	if ((target = (Node *)malloc(sizeof(Node))) == NULL){
-		exit(1);
-	}
-
-	target->next = *head;
-	if (*head != NULL && target->next != NULL){
-		while(changed == 1){
-			changed = 0;
-			p = target->next;
-			while (p->next != NULL){
-				if (p->data > p->next->data){
-					int temp = p->data;
-					p->data = p->next->data;
-					p->next->data = temp;
-					changed = 1;
-				}
-				if (p->next != NULL){
-					p = p->next;
-				}
-			}
-		}
-		p = target->next;
-		free(target);
-		*head = p;
-	}
 }
 
 //calculates and returns the sum of the data values stored in all nodes of a linked list
 int sumNodesData(Node *head) {
     int sum = 0;
-    Node *curr = head;
-    while(curr != NULL) {
-        sum += curr->data;
-        curr = curr->next;
+    Node *current = head;
+    while(current != NULL) {
+        sum += current->data;
+        current = current->next;
     }
     return sum;
 }

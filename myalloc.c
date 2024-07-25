@@ -17,11 +17,9 @@ struct Myalloc {
     // Some other data members you want, 
     // such as lists to record allocated/free memory
 
-    Node* allocatedMemory;
-    Node* freeMemory; 
+    Node* allocated_memory;
+    Node* free_memory; 
 };
-
-
 
 struct Myalloc myalloc;
 
@@ -42,9 +40,9 @@ void initialize_allocator(int _size, enum allocation_algorithm _aalgorithm) {
     memset(ptr, 0, (size_t)myalloc.size);
 
     myalloc.memory = ptr;  
-    myalloc.allocatedMemory = NULL;
-    myalloc.freeMemory = createNode(ptr, rounded_memory_size);
-    if (myalloc.freeMemory == NULL) {
+    myalloc.allocated_memory = NULL;
+    myalloc.free_memory = createNode(ptr, rounded_memory_size);
+    if (myalloc.free_memory == NULL) {
         perror("Failed to create free memory node");
         free(ptr);
         exit(EXIT_FAILURE);
@@ -53,32 +51,30 @@ void initialize_allocator(int _size, enum allocation_algorithm _aalgorithm) {
 }
 
 
-
-
 void destroy_allocator() {
     sem_wait(&mutex);
     free(myalloc.memory);
 
     // free other dynamic allocated memory to avoid memory leak
-    destructor(myalloc.allocatedMemory);
-    destructor(myalloc.freeMemory);
+    destructor(myalloc.allocated_memory);
+    destructor(myalloc.free_memory);
     sem_post(&mutex);
-
 }
+
 
 void* allocate(int _size) {
     sem_wait(&mutex);
     int sizewithheader = _size + 8;
-    void* ptr = NULL;
+    void* allocatedPtr = NULL;
     Node *emptyblock = NULL;
-    Node *currentblock = myalloc.freeMemory;
+    Node *currentblock = myalloc.free_memory;
+    int availableMemory = available_memory();
+   
+    printf("Available memory at this point is %d \n", availableMemory);
 
-    int available_mem = available_memory();
-    printf("Available memory at this point is %d \n", available_mem);
-
-    if ((_size <= 0) || (sizewithheader > available_mem) || (sizewithheader > myalloc.size)) {
+    if ((_size <= 0) || (sizewithheader > availableMemory) || (sizewithheader > myalloc.size)) {
         sem_post(&mutex);
-        return ptr;
+        return allocatedPtr;
     }
 
     int leftover;
@@ -123,28 +119,31 @@ void* allocate(int _size) {
 
     if (emptyblock == NULL) {
         sem_post(&mutex);
-        return ptr;
+        return allocatedPtr;
     }
 
     int new_emptyblock_data = emptyblock->data - sizewithheader;
     if (new_emptyblock_data == 0) {
-        insertNodeAtTail(&myalloc.allocatedMemory, emptyblock);
+        insertNodeAtTail(&myalloc.allocated_memory, emptyblock);
         emptyblock->data = sizewithheader; // Include the header size
-        ptr = emptyblock->nodeptr;
-        deleteNode(&myalloc.freeMemory, emptyblock);
+        allocatedPtr = emptyblock->nodeptr;
+        deleteNode(&myalloc.free_memory, emptyblock);
     } else {
         Node *newnode = createNode((char*)emptyblock->nodeptr + sizewithheader, new_emptyblock_data);
-        ptr = emptyblock->nodeptr;
+        allocatedPtr = emptyblock->nodeptr;
 
         Node *blockcopy = createNode(emptyblock->nodeptr, sizewithheader);
 
-        insertNodeAtTail(&myalloc.allocatedMemory, blockcopy);
-        deleteNode(&myalloc.freeMemory, emptyblock);
-        insertNodeAtTail(&myalloc.freeMemory, newnode); 
+        insertNodeAtTail(&myalloc.allocated_memory, blockcopy);
+        deleteNode(&myalloc.free_memory, emptyblock);
+        insertNodeAtTail(&myalloc.free_memory, newnode); 
     }
     sem_post(&mutex);
-    return ptr;
+    return allocatedPtr;
 }
+
+
+
 
 
 void deallocate(void* _ptr) {
@@ -154,7 +153,7 @@ void deallocate(void* _ptr) {
         return;
     }
 
-    Node *currentblock = myalloc.allocatedMemory;
+    Node *currentblock = myalloc.allocated_memory;
     while (currentblock != NULL && currentblock->nodeptr != _ptr) {
         currentblock = currentblock->next;
     }
@@ -164,10 +163,10 @@ void deallocate(void* _ptr) {
     }
 
     Node *copy = createNode(currentblock->nodeptr, currentblock->data); // Include the header size
-    deleteNode(&myalloc.allocatedMemory, currentblock);
+    deleteNode(&myalloc.allocated_memory, currentblock);
 
     Node *prev = NULL;
-    Node *mergecheck = myalloc.freeMemory;
+    Node *mergecheck = myalloc.free_memory;
     bool merged = false;
 
     // Check if we can merge with the previous block
@@ -185,16 +184,16 @@ void deallocate(void* _ptr) {
 
     // Check if we can merge with the next block
     if (!merged) {
-        mergecheck = myalloc.freeMemory;
+        mergecheck = myalloc.free_memory;
         while (mergecheck != NULL) {
             if (((char*)copy->nodeptr + copy->data) == mergecheck->nodeptr) {
                 copy->data += mergecheck->data;
                 if (prev == NULL) {
-                    myalloc.freeMemory = copy;
+                    myalloc.free_memory = copy;
                 } else {
                     prev->next = copy;
                 }
-                deleteNode(&myalloc.freeMemory, mergecheck); // Remove the merged node
+                deleteNode(&myalloc.free_memory, mergecheck); // Remove the merged node
                 merged = true;
                 printf("Merged with next block.\n");
                 break;
@@ -206,7 +205,7 @@ void deallocate(void* _ptr) {
 
     // If we didn't merge, just add the block to the free list
     if (!merged) {
-        insertNodeAtTail(&myalloc.freeMemory, copy);
+        insertNodeAtTail(&myalloc.free_memory, copy);
         printf("Added to free list without merging.\n");
     }
 
@@ -224,9 +223,9 @@ int compact_allocation(void** _before, void** _after) {
     // compact allocated memory
     // update _before, _after and compacted_size
     if(available_memory() == 0) return myalloc.size;
-    if(countNodes(myalloc.freeMemory) == 0) return myalloc.size;
+    if(countNodes(myalloc.free_memory) == 0) return myalloc.size;
 
-    Node *currentblock = myalloc.allocatedMemory;
+    Node *currentblock = myalloc.allocated_memory;
 
     while(currentblock != NULL){
         if(currentblock->next == NULL ){                    // only one allocated block
@@ -248,20 +247,20 @@ int compact_allocation(void** _before, void** _after) {
     newnode->nodeptr = currentblock->nodeptr + currentblock->data;
 
     Node *temp; 
-    while(myalloc.freeMemory != NULL){                         // tranverse to delate the previous freelist
-        temp = myalloc.freeMemory->next;                       
-        free(myalloc.freeMemory); 
-        myalloc.freeMemory = temp;
+    while(myalloc.free_memory != NULL){                         // tranverse to delate the previous freelist
+        temp = myalloc.free_memory->next;                       
+        free(myalloc.free_memory); 
+        myalloc.free_memory = temp;
     }
 
-    insertNodeAtTail(&myalloc.freeMemory, newnode);             // create new freelist
+    insertNodeAtTail(&myalloc.free_memory, newnode);             // create new freelist
     sem_post(&mutex);
     return compacted;
 }
 
 int available_memory() {
     sem_wait(&mutex);
-    int available_memory_size = sumNodesData(myalloc.freeMemory);      // use list function to tranverse and sum
+    int available_memory_size = sumNodesData(myalloc.free_memory);      // use list function to tranverse and sum
     // Calculate available memory size
     sem_post(&mutex);
     return available_memory_size;
@@ -269,16 +268,16 @@ int available_memory() {
 
 void print_statistics() {
     sem_wait(&mutex);
-    int allocated_size = sumNodesData(myalloc.allocatedMemory); // Sum of allocated memory
-    int allocated_chunks = countNodes(myalloc.allocatedMemory); // Count of allocated chunks
-    int free_size = sumNodesData(myalloc.freeMemory); // Sum of free memory
-    int free_chunks = countNodes(myalloc.freeMemory); // Count of free chunks
+    int allocated_size = sumNodesData(myalloc.allocated_memory); // Sum of allocated memory
+    int allocated_chunks = countNodes(myalloc.allocated_memory); // Count of allocated chunks
+    int free_size = sumNodesData(myalloc.free_memory); // Sum of free memory
+    int free_chunks = countNodes(myalloc.free_memory); // Count of free chunks
     int temp_min = myalloc.size;
     int temp_max = 0;
     int smallest_free_chunk_size;
     int largest_free_chunk_size;
 
-    for (Node *current = myalloc.freeMemory; current != NULL; current = current->next) {
+    for (Node *current = myalloc.free_memory; current != NULL; current = current->next) {
         if (current->data > temp_max) {
             temp_max = current->data;
         }
