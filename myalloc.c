@@ -139,9 +139,9 @@ void* allocate(int _size) {
         Node *newNode = createNode((char*)fitBlock->nodeptr + blockSizeWithHeader, newFitBlockData);
         allocatedPtr = fitBlock->nodeptr;
 
-        Node *blockcopy = createNode(fitBlock->nodeptr, blockSizeWithHeader);
+        Node *tempBlock = createNode(fitBlock->nodeptr, blockSizeWithHeader);
 
-        insertNodeAtTail(&myalloc.allocated_memory, blockcopy);
+        insertNodeAtTail(&myalloc.allocated_memory, tempBlock);
         deleteNode(&myalloc.free_memory, fitBlock);
         insertNodeAtTail(&myalloc.free_memory, newNode); 
     }
@@ -166,45 +166,45 @@ void deallocate(void* _ptr) {
         return;
     }
 
-    Node *copy = createNode(currentBlock->nodeptr, currentBlock->data); 
+    Node *tempBlock = createNode(currentBlock->nodeptr, currentBlock->data); 
     deleteNode(&myalloc.allocated_memory, currentBlock);
 
     Node *prev = NULL;
-    Node *mergecheck = myalloc.free_memory;
+    Node *mergeBlock = myalloc.free_memory;
     bool merged = false;
 
-    for (; mergecheck != NULL; mergecheck = mergecheck->next) {
-        if (((char*)mergecheck->nodeptr + mergecheck->data) == copy->nodeptr) {
-            mergecheck->data += copy->data;
+    for (; mergeBlock != NULL; mergeBlock = mergeBlock->next) {
+        if (((char*)mergeBlock->nodeptr + mergeBlock->data) == tempBlock->nodeptr) {
+            mergeBlock->data = mergeBlock->data + tempBlock->data;
             merged = true;
             printf("Merged with previous block.\n");
-            free(copy); // since merged
+            free(tempBlock); // since merged
             break;
         }
-        prev = mergecheck;
+        prev = mergeBlock;
     }
     if (!merged) {
-        mergecheck = myalloc.free_memory;
-    for (; mergecheck != NULL; mergecheck = mergecheck->next) {
-        if (((char*)copy->nodeptr + copy->data) == mergecheck->nodeptr) {
-            copy->data += mergecheck->data;
-            if (prev == NULL) {
-                myalloc.free_memory = copy;
-            } else {
-                prev->next = copy;
+        mergeBlock = myalloc.free_memory;
+        for (; mergeBlock != NULL; mergeBlock = mergeBlock->next) {
+            if (((char*)tempBlock->nodeptr + tempBlock->data) == mergeBlock->nodeptr) {
+                tempBlock->data = tempBlock->data + mergeBlock->data;
+                if (prev == NULL) {
+                    myalloc.free_memory = tempBlock;
+                } else {
+                    prev->next = tempBlock;
+                }
+                deleteNode(&myalloc.free_memory, mergeBlock); 
+                merged = true;
+                printf("Merged with next block.\n");
+                break;
             }
-            deleteNode(&myalloc.free_memory, mergecheck); 
-            merged = true;
-            printf("Merged with next block.\n");
-            break;
+            prev = mergeBlock;
         }
-        prev = mergecheck;
-    }
 
     }
 
     if (!merged) {
-        insertNodeAtTail(&myalloc.free_memory, copy);
+        insertNodeAtTail(&myalloc.free_memory, tempBlock);
         printf("Added to free list without merging.\n");
     }
 
