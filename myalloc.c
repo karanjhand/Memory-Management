@@ -64,59 +64,67 @@ void destroy_allocator() {
 
 void* allocate(int _size) {
     sem_wait(&mutex);
+
     int headerSize = 8;
     int blockSizeWithHeader = _size + headerSize;
+    int remainingSpace;
     void* allocatedPtr = NULL;
     Node *availableBlock = NULL;
     Node *currentBlockPtr = myalloc.free_memory;
     int freeMemorySize = available_memory();
-   
+    
     printf("Available memory at this point is %d \n", freeMemorySize);
 
     if (blockSizeWithHeader > myalloc.size || blockSizeWithHeader > freeMemorySize || _size <= 0) {
         sem_post(&mutex);
         return allocatedPtr;
     }
+    
+    int temp;
+    switch (myalloc.aalgorithm){
+        case FIRST_FIT: 
+            while (currentBlockPtr != NULL && currentBlockPtr->data < blockSizeWithHeader)
+                currentBlockPtr = currentBlockPtr->next;
+            if (currentBlockPtr != NULL && currentBlockPtr->data >= blockSizeWithHeader)
+                availableBlock = currentBlockPtr;
+            break;
+        case BEST_FIT:
+            temp = myalloc.size;
+            int best = myalloc.size;
 
-    int remainingSpace;
-    if (myalloc.aalgorithm == FIRST_FIT) {
-        while (currentBlockPtr != NULL && currentBlockPtr->data < blockSizeWithHeader) {
-            currentBlockPtr = currentBlockPtr->next;
-        }
-        if (currentBlockPtr != NULL && currentBlockPtr->data >= blockSizeWithHeader) {
-            availableBlock = currentBlockPtr;
-        }
-    } else if (myalloc.aalgorithm == BEST_FIT) {
-        int temp = myalloc.size;
-        int best = myalloc.size;
-
-        while (currentBlockPtr != NULL) {
-            remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
-            if (remainingSpace >= 0) {
-                temp = remainingSpace;
-                if (temp < best) {
+            while (currentBlockPtr != NULL) {
+                remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
+                if (remainingSpace >= 0){
+                    temp = remainingSpace;
+                if (temp < best){
                     availableBlock = currentBlockPtr;
                     best = temp;
                 }
             }
-            currentBlockPtr = currentBlockPtr->next;
-        }
-    } else {  // WORST_FIT
-        int temp = 0;
-        int worst = -1;
-
-        while (currentBlockPtr != NULL) {
-            remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
-            if (remainingSpace >= 0) {
-                temp = remainingSpace;
-                if (temp > worst) {
-                    availableBlock = currentBlockPtr;
-                    worst = temp;
-                }
+                currentBlockPtr = currentBlockPtr->next;
             }
-            currentBlockPtr = currentBlockPtr->next;
-        }
+            break;
+        case WORST_FIT:
+            temp = 0;
+            int worst = -1;
+
+            while (currentBlockPtr != NULL) {
+                remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
+                if (remainingSpace >= 0) {
+                    temp = remainingSpace;
+                    if (temp > worst) {
+                        availableBlock = currentBlockPtr;
+                        worst = temp;
+                    }
+                }
+                currentBlockPtr = currentBlockPtr->next;
+            }  
+            break;
+        default:
+            printf("Invalid operation.\n");
+            break;
     }
+
 
     if (availableBlock == NULL) {
         sem_post(&mutex);
@@ -124,12 +132,14 @@ void* allocate(int _size) {
     }
 
     int new_availableBlock_data = availableBlock->data - blockSizeWithHeader;
+
     if (new_availableBlock_data == 0) {
         insertNodeAtTail(&myalloc.allocated_memory, availableBlock);
-        availableBlock->data = blockSizeWithHeader; // Include the header size
+        availableBlock->data = blockSizeWithHeader; 
         allocatedPtr = availableBlock->nodeptr;
         deleteNode(&myalloc.free_memory, availableBlock);
-    } else {
+    } 
+    else {
         Node *newnode = createNode((char*)availableBlock->nodeptr + blockSizeWithHeader, new_availableBlock_data);
         allocatedPtr = availableBlock->nodeptr;
 
