@@ -69,7 +69,7 @@ void* allocate(int _size) {
     int blockSizeWithHeader = _size + headerSize;
     int remainingSpace;
     void* allocatedPtr = NULL;
-    Node *availableBlock = NULL;
+    Node *fitBlock = NULL;
     Node *currentBlockPtr = myalloc.free_memory;
     int freeMemorySize = available_memory();
     
@@ -80,45 +80,41 @@ void* allocate(int _size) {
         return allocatedPtr;
     }
     
-    int temp;
+    int currentFit, bestFit, worstFit;
     switch (myalloc.aalgorithm){
         case FIRST_FIT: 
-            while (currentBlockPtr != NULL && currentBlockPtr->data < blockSizeWithHeader)
+            while (currentBlockPtr->data < blockSizeWithHeader && currentBlockPtr != NULL )
                 currentBlockPtr = currentBlockPtr->next;
-            if (currentBlockPtr != NULL && currentBlockPtr->data >= blockSizeWithHeader)
-                availableBlock = currentBlockPtr;
+            if (currentBlockPtr->data >= blockSizeWithHeader && currentBlockPtr != NULL )
+                fitBlock = currentBlockPtr;
             break;
         case BEST_FIT:
-            temp = myalloc.size;
-            int best = myalloc.size;
-
-            while (currentBlockPtr != NULL) {
+            currentFit = myalloc.size;
+            bestFit = myalloc.size;
+                for (; currentBlockPtr != NULL; currentBlockPtr = currentBlockPtr->next) {
                 remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
-                if (remainingSpace >= 0){
-                    temp = remainingSpace;
-                if (temp < best){
-                    availableBlock = currentBlockPtr;
-                    best = temp;
+                if (remainingSpace >= 0) {
+                    currentFit = remainingSpace;
+                    if (bestFit >= currentFit) {
+                        fitBlock = currentBlockPtr;
+                        bestFit = currentFit;
+                    }
                 }
-            }
-                currentBlockPtr = currentBlockPtr->next;
             }
             break;
         case WORST_FIT:
-            temp = 0;
-            int worst = -1;
-
-            while (currentBlockPtr != NULL) {
+            currentFit = 0;
+            worstFit = -1;
+            for (; currentBlockPtr != NULL; currentBlockPtr = currentBlockPtr->next){
                 remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
                 if (remainingSpace >= 0) {
-                    temp = remainingSpace;
-                    if (temp > worst) {
-                        availableBlock = currentBlockPtr;
-                        worst = temp;
+                    currentFit = remainingSpace;
+                    if (worstFit <= currentFit) {
+                        fitBlock = currentBlockPtr;
+                        worstFit = currentFit;
                     }
                 }
-                currentBlockPtr = currentBlockPtr->next;
-            }  
+            }
             break;
         default:
             printf("Invalid operation.\n");
@@ -126,27 +122,27 @@ void* allocate(int _size) {
     }
 
 
-    if (availableBlock == NULL) {
+    if (fitBlock == NULL) {
         sem_post(&mutex);
         return allocatedPtr;
     }
 
-    int new_availableBlock_data = availableBlock->data - blockSizeWithHeader;
+    int newFitBlockData = fitBlock->data - blockSizeWithHeader;
 
-    if (new_availableBlock_data == 0) {
-        insertNodeAtTail(&myalloc.allocated_memory, availableBlock);
-        availableBlock->data = blockSizeWithHeader; 
-        allocatedPtr = availableBlock->nodeptr;
-        deleteNode(&myalloc.free_memory, availableBlock);
+    if (newFitBlockData == 0) {
+        insertNodeAtTail(&myalloc.allocated_memory, fitBlock);
+        fitBlock->data = blockSizeWithHeader; 
+        allocatedPtr = fitBlock->nodeptr;
+        deleteNode(&myalloc.free_memory, fitBlock);
     } 
     else {
-        Node *newnode = createNode((char*)availableBlock->nodeptr + blockSizeWithHeader, new_availableBlock_data);
-        allocatedPtr = availableBlock->nodeptr;
+        Node *newnode = createNode((char*)fitBlock->nodeptr + blockSizeWithHeader, newFitBlockData);
+        allocatedPtr = fitBlock->nodeptr;
 
-        Node *blockcopy = createNode(availableBlock->nodeptr, blockSizeWithHeader);
+        Node *blockcopy = createNode(fitBlock->nodeptr, blockSizeWithHeader);
 
         insertNodeAtTail(&myalloc.allocated_memory, blockcopy);
-        deleteNode(&myalloc.free_memory, availableBlock);
+        deleteNode(&myalloc.free_memory, fitBlock);
         insertNodeAtTail(&myalloc.free_memory, newnode); 
     }
     sem_post(&mutex);

@@ -68,3 +68,47 @@ void sortList (Node **head){
 		*head = p;
 	}
 }
+
+
+
+
+
+/////IN MYALLOC
+    if (myalloc.aalgorithm == FIRST_FIT) {
+        while (currentBlockPtr != NULL && currentBlockPtr->data < blockSizeWithHeader) {
+            currentBlockPtr = currentBlockPtr->next;
+        }
+        if (currentBlockPtr != NULL && currentBlockPtr->data >= blockSizeWithHeader) {
+            availableBlock = currentBlockPtr;
+        }
+    } else if (myalloc.aalgorithm == BEST_FIT) {
+        int temp = myalloc.size;
+        int best = myalloc.size;
+
+        while (currentBlockPtr != NULL) {
+            remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
+            if (remainingSpace >= 0) {
+                temp = remainingSpace;
+                if (temp < best) {
+                    availableBlock = currentBlockPtr;
+                    best = temp;
+                }
+            }
+            currentBlockPtr = currentBlockPtr->next;
+        }
+    } else {  // WORST_FIT
+        int temp = 0;
+        int worst = -1;
+
+        while (currentBlockPtr != NULL) {
+            remainingSpace = currentBlockPtr->data - blockSizeWithHeader;
+            if (remainingSpace >= 0) {
+                temp = remainingSpace;
+                if (temp > worst) {
+                    availableBlock = currentBlockPtr;
+                    worst = temp;
+                }
+            }
+            currentBlockPtr = currentBlockPtr->next;
+        }
+    }
