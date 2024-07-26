@@ -226,14 +226,17 @@ int compact_allocation(void** _before, void** _after) {
         if(currentBlock->next == NULL ){                  
             break;
         }
-        
-        if(currentBlock->nodeptr + currentBlock->data + 8 < currentBlock->next->nodeptr){
-            _before[compactedIndex] =  currentBlock->next->nodeptr;
-            memmove(currentBlock->nodeptr + currentBlock->data + 8, currentBlock->next->nodeptr, currentBlock->next->data + 8); 
-            currentBlock->next->nodeptr = currentBlock->nodeptr + currentBlock->data + 8;  
-            _after[compactedIndex] =  currentBlock->next->nodeptr; 
-            compactedIndex++;
-        }
+
+    char* endOfCurrentBlock = (char*)currentBlock->nodeptr + currentBlock->data + 8;
+
+    if (endOfCurrentBlock < (char*)currentBlock->next->nodeptr) {
+        _before[compactedIndex] = currentBlock->next->nodeptr;
+        memmove(endOfCurrentBlock, currentBlock->next->nodeptr, currentBlock->next->data + 8);
+        currentBlock->next->nodeptr = endOfCurrentBlock;
+        _after[compactedIndex] = currentBlock->next->nodeptr;
+        compactedIndex++;
+    }
+
     }
     
     Node *newNode = malloc(sizeof(Node));
