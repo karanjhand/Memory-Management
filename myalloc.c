@@ -213,7 +213,7 @@ void deallocate(void* _ptr) {
 
 int compact_allocation(void** _before, void** _after) {
     sem_wait(&mutex);
-    int compacted = 0;
+    int compactedIndex = 0;
     int currentMemorySize = available_memory();
     int nodeCounter = countNodes(myalloc.free_memory);
 
@@ -228,11 +228,11 @@ int compact_allocation(void** _before, void** _after) {
         }
         
         if(currentBlock->nodeptr + currentBlock->data + 8 < currentBlock->next->nodeptr){
-            _before[compacted] =  currentBlock->next->nodeptr;
+            _before[compactedIndex] =  currentBlock->next->nodeptr;
             memmove(currentBlock->nodeptr + currentBlock->data + 8, currentBlock->next->nodeptr, currentBlock->next->data + 8); 
             currentBlock->next->nodeptr = currentBlock->nodeptr + currentBlock->data + 8;  
-            _after[compacted] =  currentBlock->next->nodeptr; 
-            compacted++;
+            _after[compactedIndex] =  currentBlock->next->nodeptr; 
+            compactedIndex++;
         }
     }
     
@@ -247,8 +247,9 @@ int compact_allocation(void** _before, void** _after) {
 
     insertNodeAtTail(&myalloc.free_memory, newNode);             
     sem_post(&mutex);
-    return compacted;
+    return compactedIndex;
 }
+
 
 int available_memory() {
     sem_wait(&mutex);
